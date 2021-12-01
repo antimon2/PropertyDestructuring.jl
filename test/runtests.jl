@@ -37,6 +37,29 @@ end
         @test y == "歪"
     end
 
+    @testset "Assignment With Type Annotation" begin
+        let pt1 = Point2D(1, 2)
+            @destructure (; x::Float64, y::Float64) = pt1
+            @test typeof(x) === typeof(y) === Float64
+            @test x == 1.0
+            @test y == 2.0
+        end
+
+        let pt2 = Point2D(3.14, 9.99)
+            @destructure (; x::Float64, y::Float64) = pt2
+            @test typeof(x) === typeof(y) === Float64
+            @test x == 3.14
+            @test y == 9.99
+        end
+
+        let pt3 = Point3D(1.2f0, 3.4f0, 5.6f0)
+            @destructure (; x::Float64, y::Float64) = pt3
+            @test typeof(x) === typeof(y) === Float64
+            @test x ≈ 1.2 rtol=√eps(Float32)
+            @test y ≈ 3.4 rtol=√eps(Float32)
+        end
+    end
+
     @testset "Complex Assignment" begin
         pt1 = Point2D(1, 2)
         @destructure (_DUMMY, (; x, y)) = (:DUMMY, pt1)
@@ -54,6 +77,16 @@ end
         @test y == 3.4
         @test z === :z
         @test w == "W"
+
+        let pt3 = Point3D(1.2, 3.4, 5.6), other = (a=1.1, b=2.2)
+            @destructure ((; x, y), (; a::Float16, b::Float32)) = (pt3, other)
+            typeof(a) === Float16
+            typeof(b) === Float32
+            @test x == 1.2
+            @test y == 3.4
+            @test a ≈ Float16(1.1)
+            @test b ≈ 2.2f0
+        end
     end
 
     @testset "Function Argument (1)" begin
@@ -102,6 +135,10 @@ end
         x, y = _test2((x=:x, y="歪"))
         @test x === :x
         @test y == "歪"
+
+        @destructure myreal((; re)::Complex) = re
+        c = rand(ComplexF64)
+        @test myreal(c) == real(c) == c.re
     end
 
     @testset "`in` clause of `for`" begin

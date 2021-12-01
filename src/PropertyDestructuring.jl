@@ -80,13 +80,18 @@ function _deconstruct_assignees(ex)
     (new_ex, variables)
 end
 
+_to_assignment_ex(src, var) = :($(var) = getproperty($src, $(QuoteNode(var))))
+function _to_assignment_ex(src, ex::Expr)
+    Meta.isexpr(ex, :(::), 2) || :($(ex) = getproperty($src, $(QuoteNode(ex))))  # FALLBACK, will cause Error
+    var, _type = ex.args
+    :($(var)::$(_type) = getproperty($src, $(QuoteNode(var))))
+end
+
 function _destructure_property_assignment_complex(ex)
     # @assert _is_destructure_property_assignment(ex)
     new_assignee, variables = _deconstruct_assignees(ex.args[1])
     src = _destructure(ex.args[2])
-    assignments = Expr(:block, (
-        :($var = getproperty($sym, $(QuoteNode(var)))) for sym in keys(variables) for var in variables[sym]
-    )...)
+    assignments = Expr(:block, (_to_assignment_ex(sym, var) for sym in keys(variables) for var in variables[sym])...)
     quote
         $new_assignee = $src
         $assignments
@@ -100,7 +105,7 @@ function _destructure_property_assignment(ex)
         return _destructure_property_assignment_complex(ex)
     variables = ex.args[1].args[1].args
     src = _destructure(ex.args[2])
-    assignments = Expr(:block, (:($(var) = getproperty($src, $(QuoteNode(var)))) for var in variables)...)
+    assignments = Expr(:block, (_to_assignment_ex(src, var) for var in variables)...)
     quote
         $assignments
         $src
