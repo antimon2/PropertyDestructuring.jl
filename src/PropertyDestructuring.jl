@@ -28,7 +28,7 @@ function _destructure_property_for_multi(ex)
         push!(in_clauses.args, :($new_assignee = $(assignment_src.args[2])))
     end
     assignments = Expr(:block, (
-        :($var = getproperty($sym, $(QuoteNode(var)))) for sym in keys(variables) for var in variables[sym]
+        _to_assignment_ex(sym, var) for sym in keys(variables) for var in variables[sym]
     )...)
     Expr(:for, in_clauses, quote
         $assignments
@@ -41,7 +41,7 @@ function _destructure_property_for_complex(ex)
     new_assignee, variables = _deconstruct_assignees(ex.args[1].args[1])
     src = _destructure(ex.args[1].args[2])
     assignments = Expr(:block, (
-        :($var = getproperty($sym, $(QuoteNode(var)))) for sym in keys(variables) for var in variables[sym]
+        _to_assignment_ex(sym, var) for sym in keys(variables) for var in variables[sym]
     )...)
     :(for $new_assignee in $src
         $assignments
@@ -54,8 +54,9 @@ function _destructure_property_for(ex)
     Meta.isexpr(ex.args[1], :block) && return _destructure_property_for_multi(ex)
     Meta.isexpr(ex.args[1].args[1], :tuple) && Meta.isexpr(ex.args[1].args[1].args[1], :parameters) || 
         return _destructure_property_for_complex(ex)
-    blk = _destructure(ex.args[2])
     variables = ex.args[1].args[1].args[1].args
+    any(Meta.isexpr(v, :(::)) for v in variables) && return _destructure_property_for_complex(ex)
+    blk = _destructure(ex.args[2])
     lh = Expr(:tuple, variables...)
     _el = gensym(:el)
     gvars = Expr(:tuple, (:($_el.$var) for var in variables)...)
@@ -80,11 +81,11 @@ function _deconstruct_assignees(ex)
     (new_ex, variables)
 end
 
-_to_assignment_ex(src, var) = :($(var) = getproperty($src, $(QuoteNode(var))))
+_to_assignment_ex(src, var) = :(local $(var) = getproperty($src, $(QuoteNode(var))))
 function _to_assignment_ex(src, ex::Expr)
-    Meta.isexpr(ex, :(::), 2) || :($(ex) = getproperty($src, $(QuoteNode(ex))))  # FALLBACK, will cause Error
+    Meta.isexpr(ex, :(::), 2) || :(local $(ex) = getproperty($src, $(QuoteNode(ex))))  # FALLBACK, will cause Error
     var, _type = ex.args
-    :($(var)::$(_type) = getproperty($src, $(QuoteNode(var))))
+    :(local $(var)::$(_type) = getproperty($src, $(QuoteNode(var))))
 end
 
 function _destructure_property_assignment_complex(ex)

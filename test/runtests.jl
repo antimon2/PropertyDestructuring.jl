@@ -58,6 +58,13 @@ end
             @test x ≈ 1.2 rtol=√eps(Float32)
             @test y ≈ 3.4 rtol=√eps(Float32)
         end
+
+        let pt3 = Point3D(1.2f0, 3.4f0, 5.6f0)
+            @destructure (; x::Float32, y::Float32) = pt3
+            @test typeof(x) === typeof(y) === Float32
+            @test x == 1.2f0
+            @test y == 3.4f0
+        end
     end
 
     @testset "Complex Assignment" begin
@@ -156,6 +163,14 @@ end
             index += 1
         end
 
+        index = 1
+        @destructure for (; x::Float64, y::Float64) in pts[1:3]
+            @test typeof(x) === typeof(y) === Float64
+            @test x == pts[index].x
+            @test y == pts[index].y
+            index += 1
+        end
+
         @destructure for (pt, (; x, y)) in zip(pts, pts)
             @test x == pt.x
             @test y == pt.y
@@ -169,6 +184,12 @@ end
         end
 
         @destructure for (pt, (; x, y)) in zip(pts, pts), _DUMMY in 1
+            @test x == pt.x
+            @test y == pt.y
+        end
+
+        @destructure for (pt, (; x::Float64, y::Float64)) in zip(pts[1:3], pts)
+            @test typeof(x) === typeof(y) === Float64
             @test x == pt.x
             @test y == pt.y
         end
