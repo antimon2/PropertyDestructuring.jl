@@ -194,6 +194,57 @@ end
             @test y == pt.y
         end
     end
+
+    @testset "Combined" begin
+        let
+            @destructure check_combined((;x, y), x_expected, y_expected) = x == x_expected && y == y_expected
+
+            pts = [
+                Point2D(1, 2),
+                Point2D(3.14, 9.99),
+                Point3D(1.2, 3.4, 5.6),
+                (x=:x, y="歪"),
+            ]
+
+            @destructure for (pt, (; x, y)) in zip(pts, pts)
+                @test check_combined(pt, x, y)
+            end
+
+            for pt in pts
+                @destructure (;x, y) = pt
+                @test check_combined(pt, x, y)
+            end
+        end
+
+        @destructure let
+            check_combined((;x, y), x_expected, y_expected) = x == x_expected && y == y_expected
+
+            pts = [
+                Point2D(1, 2),
+                Point2D(3.14, 9.99),
+                Point3D(1.2, 3.4, 5.6),
+                (x=:x, y="歪"),
+            ]
+
+            for (pt, (; x, y)) in zip(pts, pts)
+                @test check_combined(pt, x, y)
+            end
+
+            for pt in pts
+                (;x, y) = pt
+                @test check_combined(pt, x, y)
+            end
+        end
+    end
+
+    @testset "Const" begin
+        include("consttest.jl")
+
+        @test typeof(Test20211215.num) === UInt8
+        @test typeof(Test20211215.den) === UInt8
+        @test Test20211215.num == 0x01
+        @test Test20211215.den == 0x05
+    end
 end
 
 end  # module
